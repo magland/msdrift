@@ -1,0 +1,11 @@
+*.mda
+__pycache__
+bin
+build
+.*.cppimporthash
+.rendered.*
+*.so
+geom.csv
+Makefile
+*.pro.user
+.idea

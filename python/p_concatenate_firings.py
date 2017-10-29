@@ -7,7 +7,7 @@ sys.path.append(parent_path+'/../mountainsort/packages/pyms')
 import mlpy
 
 processor_name='pyms.concatenate_firings'
-processor_version='0.1'
+processor_version='0.11'
 def concatenate_firings(*,firings_list, firings_out, time_offsets, increment_labels='false'):
     """
     Combine a list of firings files to form a single firings file
@@ -30,12 +30,19 @@ def concatenate_firings(*,firings_list, firings_out, time_offsets, increment_lab
     else:
         time_offsets=np.zeros(len(firings_list))
     if len(firings_list) == len(time_offsets):
-        concatenated_firings=np.array([[],[],[],[]])
+        concatenated_firings=np.zeros((3,0)) #default to case where the list is empty
+        first=True        
         for idx, firings in enumerate(firings_list):
             to_append=mlpy.readmda(firings)
-            if increment_labels=='true':
-                to_append[1,:]+=time_offsets[idx]
-            concatenated_firings = np.append(concatenated_firings,to_append, axis=1)
+            to_append[1,:]+=time_offsets[idx]
+            if not first:
+                if increment_labels=='true':
+                    to_append[2,:]+=max(concatenated_firings[2,:]) #add the Kmax from previous
+            if first:
+                concatenated_firings = to_append
+            else:
+                concatenated_firings = np.append(concatenated_firings,to_append, axis=1)
+            first=False
         mlpy.writemda64(concatenated_firings,firings_out)
         return True
     else:

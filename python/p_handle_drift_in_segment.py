@@ -51,7 +51,7 @@ def handle_drift_in_segment(*,timeseries,firings,firings_out):
     for row in range(pairwise_idxs.shape[0]): #Calculate the correlation coefficient for each pair of flattened templates
         pairwise_corrcoef[row]=np.corrcoef(subflat_templates[:,pairwise_idxs[row,0]],subflat_templates[:,pairwise_idxs[row,1]])[1,0]
     pairs_for_eval=np.array(pairwise_idxs[pairwise_corrcoef>=corr_comp_thresh]) #Threshold the correlation array, and use to index the pairwise comparison array
-
+    pairs_to_merge=np.array([])#holder variable for merging pairs
     ## Loop through the pairs for comparison
 
     for pair_to_test in range(pairs_for_eval.shape[0]):  # Iterate through pairs that are above correlation comparison threshold
@@ -94,9 +94,35 @@ def handle_drift_in_segment(*,timeseries,firings,firings_out):
         V = np.tile(V, (clip_features.shape[0], 1))
         clip_1d_projs = np.einsum('ij,ij->i', clip_features, V)
 
-    print('looped through all pairs')
-        ##Histogram points and test cut point
+        #TODO: Test for merge subprocess
+        #If the clusters are to be merged, add to the cluster to merge list
+        if test_for_merge(clip_1d_projs, A_indices, B_indices):
+            pairs_to_merge=np.append(pairs_to_merge,pairs_for_eval[pair_to_test, :] + 1)#Base 1 correction
 
+    pairs_to_merge=np.reshape(pairs_to_merge,(-1,2))#easier to read
+
+    #Propagate merge pairs to lowest label number
+    for idx, label in enumerate(pairs_to_merge[:,1]):
+        pairs_to_merge[np.isin(pairs_to_merge[:,0],label),0] = pairs_to_merge[idx,0]#Input should be sorted
+
+    #Merge firing labels
+    for merge_pair in range(pairs_to_merge.shape[0]):
+        firings[2, np.isin(firings[2, :], pairs_to_merge[merge_pair, 1])] = pairs_to_merge[merge_pair,0] #Already base 1 corrected
+
+    #Write merged firings
+    mlpy.writemda64(firings,firings_out)
+
+def test_for_merge(clip_1d_projs,A_indices,B_indices):
+    #Placeholder for now
+    #For testing, difference in mean less than half SD
+    A=clip_1d_projs[A_indices]
+    B=clip_1d_projs[B_indices]
+    mean_diff = np.absolute(np.mean(A)-np.mean(B))
+    half_SD = np.mean([np.std(A), np.std(B)])/2
+    if mean_diff < half_SD:
+        return True
+    else:
+        return False
 
 def find_temporally_proximal_events(times,labels,subcluster_size):
     FirstEventInPair_idx=np.flatnonzero(np.diff(labels)) #Take diff (subtract neighboring value in array) of LABELS to determine when two neighboring events come from different clusters

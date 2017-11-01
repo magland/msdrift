@@ -100,6 +100,7 @@ def handle_drift_in_segment(*,timeseries,firings,firings_out):
             pairs_to_merge=np.append(pairs_to_merge,pairs_for_eval[pair_to_test, :] + 1)#Base 1 correction
 
     pairs_to_merge=np.reshape(pairs_to_merge,(-1,2))#easier to read
+    pairs_to_merge=pairs_to_merge[np.argsort(pairs_to_merge[:,0])]#Assure that input is sorted
 
     #Propagate merge pairs to lowest label number
     for idx, label in enumerate(pairs_to_merge[:,1]):

@@ -5,15 +5,15 @@ import sys, os
 parent_path=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_path+'/../mountainsort/packages/pyms')
 
-from basic.p_compute_templates import compute_templates_helper
+#from basic.p_compute_templates import compute_templates_helper
 from basic.p_extract_clips import extract_clips_helper
 
-from mlpy import readmda, writemda64, DiskReadMda
+from mlpy import readmda, writemda64, writemda32, DiskReadMda
 
 processor_name='pyms.anneal_segments'
-processor_version='0.1'
+processor_version='0.11'
 
-def anneal_segments(*, timeseries_list, firings_list, firings_out, time_offsets):
+def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='', dmatrix_templates_out='', time_offsets):
     """
     Combine a list of firings files to form a single firings file
     Link firings labels to first firings.mda, all other firings labels are incremented
@@ -25,7 +25,13 @@ def anneal_segments(*, timeseries_list, firings_list, firings_out, time_offsets)
     firings_list : INPUT
         A list of paths of firings mda files to be concatenated/drift adjusted
     firings_out : OUTPUT
+        The output firings
+    dmatrix_out : OUTPUT
+        The distance matrix used
+    dmatrix_templates_out : OUTPUT
+        The templates used to compute the distance matrix
         ...
+        
 
     time_offsets : string
         An array of time offsets for each firings file. Expect one offset for each firings file.
@@ -61,6 +67,9 @@ def anneal_segments(*, timeseries_list, firings_list, firings_out, time_offsets)
     for merge_pair in range(pairs_to_merge.shape[0]):
         concatenated_firings[2, np.isin(concatenated_firings[2, :], pairs_to_merge[merge_pair, 1])] = pairs_to_merge[merge_pair,0] # Already base 1 corrected
 
+    writemda64(dmatrix,dmatrix_out)
+    writemda32(templates,dmatrix_templates_out)
+
     #Write
     return writemda64(concatenated_firings, firings_out)
 
@@ -72,7 +81,10 @@ def get_join_matrix(dmatrix, templates, Kmaxes):
     for dframe in range(dmatrix.shape[2]):
         for f1_idx in range(dmatrix.shape[1]):
             f2_pair = _nanargmin(dmatrix[f1_idx,:,dframe]) #Ignore nan's and if all nans, return nan
-            pairs_to_merge = np.append(pairs_to_merge, np.array([f1_idx + f1_adj + 1, f2_pair + f2_adj + 1])) #Base 1 adjustment to match label
+            if not np.isnan(f2_pair):
+                f1_pair = _nanargmin(dmatrix[:,f2_pair,dframe])
+                if f1_pair==f1_idx: # mutual nearest
+                    pairs_to_merge = np.append(pairs_to_merge, np.array([f1_idx + f1_adj + 1, f2_pair + f2_adj + 1])) #Base 1 adjustment to match label
         f1_adj+=Kmaxes[dframe]
         f2_adj+=Kmaxes[dframe+1]
     return pairs_to_merge
@@ -118,7 +130,7 @@ def get_dmatrix_templates(timeseries_list, firings_list):
         F = firings_arrays[j]
         labels = F[2, :]
         Kmax = int(max(Kmax, np.max(labels)))
-        Kmaxes.append(Kmax)
+        Kmaxes.append(np.max(labels))
     dmatrix = np.ones((Kmax, Kmax, num_segments - 1)) * (-1)
     templates = np.zeros((M, clip_size, Kmax, 2 * (num_segments - 1)))
 

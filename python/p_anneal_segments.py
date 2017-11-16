@@ -124,6 +124,7 @@ def get_dmatrix_templates(timeseries_list, firings_list):
 
     for j in range(num_segments - 1):
         print('Computing dmatrix between segments %d and %d' % (j, j + 1))
+        print(timeseries_list)
         (dmatrix0, templates1, templates2) = compute_dmatrix(timeseries_list[j], timeseries_list[j + 1],
                                                              firings_arrays[j], firings_arrays[j + 1],
                                                              clip_size=clip_size)

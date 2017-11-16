@@ -10,8 +10,6 @@ import p_concatenate_firings
 import p_handle_drift_in_segment
 import p_join_segments
 import p_anneal_segments
-import p_apply_label_map
-import p_create_label_map
 
 PM=ProcessorManager()
 
@@ -19,8 +17,6 @@ PM.registerProcessor(p_concatenate_firings.concatenate_firings)
 PM.registerProcessor(p_handle_drift_in_segment.handle_drift_in_segment)
 PM.registerProcessor(p_join_segments.join_segments)
 PM.registerProcessor(p_anneal_segments.anneal_segments)
-PM.registerProcessor(p_apply_label_map.apply_label_map)
-PM.registerProcessor(p_create_label_map.create_label_map)
 
 if not PM.run(sys.argv):
     exit(-1)

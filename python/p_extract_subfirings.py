@@ -27,8 +27,10 @@ def extract_subfirings(*, firings, t1='', t2='', channels='', channels_array='',
         Start time for extracted firings
     t2 : INPUT
         End time for extracted firings; use -1 OR no value for end of timeseries
-    channel_list : INPUT
-        A list of channels from which clusters with maximal energy (based on template) will be extracted
+    channels : INPUT
+        A string of channels from which clusters with maximal energy (based on template) will be extracted
+    channels_array : INPUT
+        An array of channels from which clusters with maximal energy (based on template) will be extracted
     timeseries : INPUT
         A path of a timeseries file from which templates will be calculated if a subset of channels is given
     firings_out : OUTPUT

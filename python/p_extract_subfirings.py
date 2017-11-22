@@ -12,7 +12,7 @@ from mlpy import readmda, writemda64, writemda32, DiskReadMda
 processor_name='pyms.extract_subfirings'
 processor_version='0.1'
 
-def extract_subfirings(*, firings, t1='', t2='', channels='', channels_array='' timeseries='', firings_out):
+def extract_subfirings(*, firings, t1='', t2='', channels='', channels_array='', timeseries='', firings_out):
     """
     Extract a firings subset based on times and/or channels.
     If a time subset is extracted, the firings are adjusted to t_new = t_original - t1

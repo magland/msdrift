@@ -11,6 +11,7 @@ import p_handle_drift_in_segment
 import p_join_segments
 import p_anneal_segments
 import p_extract_subfirings
+import p_reptrack
 
 PM=ProcessorManager()
 
@@ -19,6 +20,7 @@ PM.registerProcessor(p_handle_drift_in_segment.handle_drift_in_segment)
 PM.registerProcessor(p_join_segments.join_segments)
 PM.registerProcessor(p_anneal_segments.anneal_segments)
 PM.registerProcessor(p_extract_subfirings.extract_subfirings)
+PM.registerProcessor(p_reptrack.reptrack)
 
 if not PM.run(sys.argv):
     exit(-1)

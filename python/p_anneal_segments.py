@@ -11,9 +11,9 @@ from basic.p_extract_clips import extract_clips_helper
 from mlpy import readmda, writemda64, writemda32, DiskReadMda
 
 processor_name='pyms.anneal_segments'
-processor_version='0.11'
+processor_version='0.12'
 
-def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='', dmatrix_templates_out='', time_offsets):
+def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='', k1_dmatrix_out='', k2_dmatrix_out='', dmatrix_templates_out='', time_offsets):
     """
     Combine a list of firings files to form a single firings file
     Link firings labels to first firings.mda, all other firings labels are incremented
@@ -28,6 +28,10 @@ def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='
         The output firings
     dmatrix_out : OUTPUT
         The distance matrix used
+    k1_dmatrix_out : OUTPUT
+        The mean distances of k1 templates to k1 spikes
+    k2_dmatrix_out : OUTPUT
+        The mean distances of k2 templates to k2 spikes
     dmatrix_templates_out : OUTPUT
         The templates used to compute the distance matrix
         ...
@@ -49,8 +53,10 @@ def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='
 
     concatenated_firings = concat_and_increment(firings_list, time_offsets)
 
-    (dmatrix, templates, Kmaxes) = get_dmatrix_templates(timeseries_list, firings_list)
+    (dmatrix, k1_dmatrix, k2_dmatrix, templates, Kmaxes) = get_dmatrix_templates(timeseries_list, firings_list)
     dmatrix[dmatrix < 0] = np.nan  # replace all negative dist numbers (no comparison) with NaN
+    k1_dmatrix[dmatrix < 0] = np.nan  # replace all negative dist numbers (no comparison) with NaN
+    k2_dmatrix[dmatrix < 0] = np.nan  # replace all negative dist numbers (no comparison) with NaN
 
     #TODO: Improve join function
     pairs_to_merge = get_join_matrix(dmatrix, templates, Kmaxes) # Returns with base 1 adjustment
@@ -69,6 +75,8 @@ def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='
 
     writemda64(dmatrix,dmatrix_out)
     writemda32(templates,dmatrix_templates_out)
+    writemda64(k1_dmatrix, k1_dmatrix_out)
+    writemda64(k2_dmatrix, k2_dmatrix_out)
 
     #Write
     return writemda64(concatenated_firings, firings_out)
@@ -132,18 +140,22 @@ def get_dmatrix_templates(timeseries_list, firings_list):
         Kmax = int(max(Kmax, np.max(labels)))
         Kmaxes.append(np.max(labels))
     dmatrix = np.ones((Kmax, Kmax, num_segments - 1)) * (-1)
+    k1_dmatrix = np.ones((Kmax, Kmax, num_segments - 1)) * (-1)
+    k2_dmatrix = np.ones((Kmax, Kmax, num_segments - 1)) * (-1)
     templates = np.zeros((M, clip_size, Kmax, 2 * (num_segments - 1)))
 
     for j in range(num_segments - 1):
         print('Computing dmatrix between segments %d and %d' % (j, j + 1))
         print(timeseries_list)
-        (dmatrix0, templates1, templates2) = compute_dmatrix(timeseries_list[j], timeseries_list[j + 1],
+        (dmatrix0, k1_dmatrix0, k2_dmatrix0, templates1, templates2) = compute_dmatrix(timeseries_list[j], timeseries_list[j + 1],
                                                              firings_arrays[j], firings_arrays[j + 1],
                                                              clip_size=clip_size)
         dmatrix[0:dmatrix0.shape[0], 0:dmatrix0.shape[1], j] = dmatrix0
+        k1_dmatrix[0:dmatrix0.shape[0], 0:dmatrix0.shape[1], j] = k1_dmatrix0
+        k2_dmatrix[0:dmatrix0.shape[0], 0:dmatrix0.shape[1], j] = k2_dmatrix0
         templates[:, :, 0:dmatrix0.shape[0], j * 2] = templates1
         templates[:, :, 0:dmatrix0.shape[1], j * 2 + 1] = templates2
-    return (dmatrix, templates, Kmaxes)
+    return (dmatrix, k1_dmatrix, k2_dmatrix, templates, Kmaxes)
 
 def compute_dmatrix(timeseries1, timeseries2, F1, F2, *, clip_size):
     X = DiskReadMda(timeseries1)
@@ -160,6 +172,10 @@ def compute_dmatrix(timeseries1, timeseries2, F1, F2, *, clip_size):
     K1 = int(max(labels1))
     K2 = int(max(labels2))
     dmatrix = np.zeros((K1, K2))
+
+    k1_dmatrix = np.zeros((K1, K2))
+    k2_dmatrix = np.zeros((K1, K2))
+
     templates1 = np.zeros((M, clip_size, K1))
     templates2 = np.zeros((M, clip_size, K2))
     for k1 in range(1, K1 + 1):
@@ -173,7 +189,9 @@ def compute_dmatrix(timeseries1, timeseries2, F1, F2, *, clip_size):
             clips2_k2 = clips2[:, :, inds_k2]
             templates2[:, :, k2 - 1] = np.mean(clips2_k2, axis=2)
             dmatrix[k1 - 1, k2 - 1] = compute_distance_between_clusters(clips1_k1, clips2_k2)
-    return (dmatrix, templates1, templates2)
+            k1_dmatrix[k1 - 1, k2 - 1] = compute_distance_between_template_and_spikes(clips1_k1)
+            k2_dmatrix[k1 - 1, k2 - 1] = compute_distance_between_template_and_spikes(clips2_k2)
+    return (dmatrix, k1_dmatrix, k2_dmatrix, templates1, templates2)
 
 
 def get_first_events(firings, num):
@@ -216,6 +234,13 @@ def compute_distance_between_clusters(clips1, clips2):
     centroid2 = np.mean(clips2, axis=2)
     dist = np.sum((centroid2 - centroid1) ** 2)
     return dist
+
+def compute_distance_between_template_and_spikes(clips):
+    centroid1 = np.mean(clips, axis=2)
+    spk_mean_dist = 0
+    for idx in range(clips1.shape[2]):
+        spk_mean_dist += np.sum(((centroid1 - clips[:,:,idx]) ** 2))/clips.shape[2]
+    return spk_mean_dist
 
 anneal_segments.name = processor_name
 anneal_segments.version = processor_version

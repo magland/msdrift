@@ -59,7 +59,7 @@ def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='
     k2_dmatrix[dmatrix < 0] = np.nan  # replace all negative dist numbers (no comparison) with NaN
 
     #TODO: Improve join function
-    pairs_to_merge = get_join_matrix(dmatrix, templates, Kmaxes) # Returns with base 1 adjustment
+    pairs_to_merge = get_join_matrix(dmatrix, k1_dmatrix, templates, Kmaxes) # Returns with base 1 adjustment
 
     pairs_to_merge = np.reshape(pairs_to_merge, (-1, 2))
     pairs_to_merge = pairs_to_merge[~np.isnan(pairs_to_merge).any(axis=1)] # Eliminate all rows with NaN
@@ -81,7 +81,7 @@ def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='
     #Write
     return writemda64(concatenated_firings, firings_out)
 
-def get_join_matrix(dmatrix, templates, Kmaxes):
+def get_join_matrix(dmatrix, k1_dmatrix, templates, Kmaxes):
     #Sweep forward in time, linking clust to min dist away
     pairs_to_merge=np.array([])
     f1_adj = 0
@@ -92,7 +92,9 @@ def get_join_matrix(dmatrix, templates, Kmaxes):
             if not np.isnan(f2_pair):
                 f1_pair = _nanargmin(dmatrix[:,f2_pair,dframe])
                 if f1_pair==f1_idx: # mutual nearest
-                    pairs_to_merge = np.append(pairs_to_merge, np.array([f1_idx + f1_adj + 1, f2_pair + f2_adj + 1])) #Base 1 adjustment to match label
+                    #Check if distance to new template is less than mean distance to spike
+                    if (np.log10(dmatrix[f1_idx, f2_pair, dframe]/k1_dmatrix[f1_idx, f2_pair, dframe]) < -1):
+                        pairs_to_merge = np.append(pairs_to_merge, np.array([f1_idx + f1_adj + 1, f2_pair + f2_adj + 1])) #Base 1 adjustment to match label
         f1_adj+=Kmaxes[dframe]
         f2_adj+=Kmaxes[dframe+1]
     return pairs_to_merge

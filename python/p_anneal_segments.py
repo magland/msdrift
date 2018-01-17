@@ -11,7 +11,7 @@ from basic.p_extract_clips import extract_clips_helper
 from mlpy import readmda, writemda64, writemda32, DiskReadMda
 
 processor_name='pyms.anneal_segments'
-processor_version='0.12'
+processor_version='0.13'
 
 def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='', k1_dmatrix_out='', k2_dmatrix_out='', dmatrix_templates_out='', time_offsets):
     """

@@ -238,7 +238,7 @@ def compute_distance_between_clusters(clips1, clips2):
 def compute_distance_between_template_and_spikes(clips):
     centroid1 = np.mean(clips, axis=2)
     spk_mean_dist = 0
-    for idx in range(clips1.shape[2]):
+    for idx in range(clips.shape[2]):
         spk_mean_dist += np.sum(((centroid1 - clips[:,:,idx]) ** 2))/clips.shape[2]
     return spk_mean_dist
 

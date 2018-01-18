@@ -11,7 +11,7 @@ from basic.p_extract_clips import extract_clips_helper
 from mlpy import readmda, writemda64, writemda32, DiskReadMda
 
 processor_name='pyms.anneal_segments'
-processor_version='0.13'
+processor_version='0.17'
 
 def anneal_segments(*, timeseries_list, firings_list, firings_out, dmatrix_out='', k1_dmatrix_out='', k2_dmatrix_out='', dmatrix_templates_out='', time_offsets):
     """
@@ -93,7 +93,7 @@ def get_join_matrix(dmatrix, k1_dmatrix, templates, Kmaxes):
                 f1_pair = _nanargmin(dmatrix[:,f2_pair,dframe])
                 if f1_pair==f1_idx: # mutual nearest
                     #Check if distance to new template is less than mean distance to spike
-                    if (np.log10(dmatrix[f1_idx, f2_pair, dframe]/k1_dmatrix[f1_idx, f2_pair, dframe]) < -1):
+                    if ((dmatrix[f1_idx, f2_pair, dframe]/k1_dmatrix[f1_idx, f2_pair, dframe]) < 0.1):
                         pairs_to_merge = np.append(pairs_to_merge, np.array([f1_idx + f1_adj + 1, f2_pair + f2_adj + 1])) #Base 1 adjustment to match label
         f1_adj+=Kmaxes[dframe]
         f2_adj+=Kmaxes[dframe+1]
@@ -162,8 +162,8 @@ def get_dmatrix_templates(timeseries_list, firings_list):
 def compute_dmatrix(timeseries1, timeseries2, F1, F2, *, clip_size):
     X = DiskReadMda(timeseries1)
     M = X.N1()
-    F1b = get_last_events(F1, 100)
-    F2b = get_first_events(F2, 100)
+    F1b = get_last_events(F1, 1000)
+    F2b = get_first_events(F2, 1000)
     times1 = F1b[1, :].ravel()
     labels1 = F1b[2, :].ravel()
     clips1 = extract_clips_helper(timeseries=timeseries1, times=times1, clip_size=clip_size)
